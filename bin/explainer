@@ -1,0 +1,222 @@
+#!/usr/bin/env node
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const KIT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+const USAGE = `video-explainer-kit
+
+usage: explainer <command> [args]
+
+commands:
+  setup                             one-time install: Kokoro TTS + Whisper venv, tool checks
+  prep <scenes.json>                rewrite spoken lines for TTS (lexicon + normalizer)
+  synth <scenes.json>               synthesize narration to out/ wavs + durations.json
+  verify-audio <scenes.json>        transcribe with Whisper, check timing, write captions.json
+  verify-audio <scenes.json> --repair   also rebuild bad chunks with longer gaps
+  audition <dir>                    listen check for lexicon terms (one-off)
+  segments [dir]                    write timing.ts + captions.ts from durations/captions
+  facts <scenes.json> --facts <f>   check every on-screen number against the facts ledger
+  tokens build [--theme T] [--out F] [--check]    generate tailwind.css from a theme's tokens.json
+  tokens import --from <css|dir|tgz> [--name N] [--version V] [--scale S] [--out tokens.json]
+  render <timeline.ts> [args]       pass-through to render/vw.ts (try: render --help)
+  theme init <name> <dir>           scaffold a new theme (style.css, tokens.json, tailwind.css)
+  help                              this message
+
+render examples:
+  explainer render example/example.timeline.ts --check
+  explainer render example/example.timeline.ts --frames out/frames
+  explainer render example/example.timeline.ts --output example/out/example.mp4
+
+python: uses $EXPLAINER_VENV (or $EXPLAIN_VIDEO_VENV, default ~/.venvs/explain-video) when present,
+otherwise python3 from PATH. prep/segments/facts need no venv; synth/verify-audio/audition do.`;
+
+const die = (msg, code = 1) => {
+  console.error(msg);
+  process.exit(code);
+};
+
+const absolute = (p) => resolve(p);
+
+const withOut = (args) => {
+  const i = args.indexOf("--out");
+  if (i !== -1) {
+    if (i + 1 < args.length) args[i + 1] = absolute(args[i + 1]);
+    return args;
+  }
+  return ["--out", dirname(absolute(args[0])), ...args];
+};
+
+const python = () => {
+  const venv = process.env.EXPLAINER_VENV || process.env.EXPLAIN_VIDEO_VENV || join(process.env.HOME || "~", ".venvs", "explain-video");
+  const candidate = join(venv, "bin", "python");
+  return existsSync(candidate) ? candidate : "python3";
+};
+
+const run = (command, args, opts = {}) => {
+  const r = spawnSync(command, args, { stdio: "inherit", ...opts });
+  if (r.error) die(`explainer: cannot run ${command}: ${r.error.message}`);
+  process.exit(r.status ?? 1);
+};
+
+const themeInit = (name, dir) => {
+  const root = resolve(dir);
+  if (existsSync(join(root, "style.css"))) die(`explainer: ${root} already contains a style.css`);
+  mkdirSync(root, { recursive: true });
+  writeFileSync(
+    join(root, "style.css"),
+    `/* ${name} theme. ${name}@0.1.0 */
+
+@font-face {
+	font-family: "MyDisplay";
+	src: url("./MyDisplay-Regular.woff2") format("woff2");
+	font-weight: 400;
+	font-display: block;
+}
+
+:root {
+	--font-display: "MyDisplay", ui-sans-serif, system-ui, sans-serif;
+	--font-text: "MyDisplay", ui-sans-serif, system-ui, sans-serif;
+	--font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+	--bg: #101014;
+	--fg: #f2f2f5;
+	--accent: #ff8800;
+	--muted: #b8b8c4;
+	--border: #2a2a33;
+	--surface: #17171c;
+	--surface-2: #1f1f26;
+}
+
+.vw-stage {
+	background: var(--bg);
+	color: var(--fg);
+	font-family: var(--font-text);
+}
+
+.vw-stage::before {
+	content: "";
+	position: absolute;
+	inset: 40px;
+	border: 2px solid var(--border);
+	z-index: -1;
+	pointer-events: none;
+}
+`,
+  );
+  writeFileSync(
+    join(root, "STYLE.md"),
+    `# ${name}
+
+One paragraph on the look: mood, typography, colour, motion.
+
+## Type
+
+- display: …
+
+## Colour
+
+- bg: …, fg: …, accent: …, muted: …
+
+## Rules
+
+- …
+
+## Sources
+
+- …
+`,
+  );
+  writeFileSync(
+    join(root, "tokens.json"),
+    JSON.stringify(
+      {
+        name,
+        version: "0.1.0",
+        prefers_color_scheme: "dark",
+        scale: 1,
+        colors: {
+          "bg-default": "#101014",
+          "bg-section": "#17171c",
+          "bg-subsection": "#1f1f26",
+          "border-default": "#2a2a33",
+          "border-muted": "#3a3a44",
+          "text-default": "#f2f2f5",
+          "text-alternative": "#b8b8c4",
+          "text-muted": "#9a9aa6",
+          "accent-default": "#ff8800",
+          "accent-inverse": "#101014",
+        },
+        type: {
+          "display-lg": { "font-size": 96, "line-height": 101, "font-weight": 500, "letter-spacing": -0.02 },
+          "display-md": { "font-size": 88, "line-height": 92, "font-weight": 500, "letter-spacing": -0.02 },
+          "heading-lg": { "font-size": 56, "line-height": 64, "font-weight": 500, "letter-spacing": -0.01 },
+          "heading-md": { "font-size": 44, "line-height": 52, "font-weight": 500, "letter-spacing": -0.01 },
+          "heading-sm": { "font-size": 36, "line-height": 44, "font-weight": 500 },
+          "body-lg": { "font-size": 36, "line-height": 44, "font-weight": 400 },
+          "body-md": { "font-size": 28, "line-height": 36, "font-weight": 400 },
+          "body-md-medium": { "font-size": 28, "line-height": 36, "font-weight": 500 },
+          "body-sm": { "font-size": 24, "line-height": 32, "font-weight": 400 },
+          "body-xs": { "font-size": 20, "line-height": 28, "font-weight": 400 },
+        },
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+  const r = spawnSync(python(), [join(KIT, "tools", "tokens.py"), "build", "--theme", root, "--out", join(root, "tailwind.css")], { stdio: "inherit" });
+  if (r.status !== 0) die(`explainer: tokens build failed while scaffolding ${root}`);
+  console.log(`theme scaffolded: ${root}`);
+  console.log("next: drop fonts + a real stylesheet into style.css, update tokens.json, re-run: explainer tokens build --theme <dir>");
+};
+
+const [, , cmd, ...rest] = process.argv;
+
+switch (cmd) {
+  case undefined:
+  case "help":
+  case "--help":
+  case "-h":
+    console.log(USAGE);
+    process.exit(0);
+  case "setup":
+    run("bash", [join(KIT, "setup.sh")]);
+    break;
+  case "prep":
+    rest[0] ? run(python(), [join(KIT, "speech", "speak_prep.py"), ...rest]) : die("usage: explainer prep <scenes.json>");
+    break;
+  case "synth":
+    rest[0] ? run(python(), [join(KIT, "speech", "synth.py"), ...withOut(rest)]) : die("usage: explainer synth <scenes.json>");
+    break;
+  case "verify-audio":
+  case "verify_audio":
+    rest[0] ? run(python(), [join(KIT, "speech", "verify_audio.py"), ...withOut(rest)]) : die("usage: explainer verify-audio <scenes.json> [--repair]");
+    break;
+  case "audition":
+    rest[0] ? run(python(), [join(KIT, "speech", "audition.py"), ...rest]) : die("usage: explainer audition <dir>");
+    break;
+  case "segments":
+    run(python(), [join(KIT, "tools", "build_segment_data.py"), ...(rest.length ? rest : ["."])]);
+    break;
+  case "facts":
+    rest[0] ? run(python(), [join(KIT, "tools", "verify_facts.py"), ...rest]) : die("usage: explainer facts <scenes.json> --facts <facts.json>");
+    break;
+  case "tokens":
+    rest[0] ? run(python(), [join(KIT, "tools", "tokens.py"), ...rest]) : die("usage: explainer tokens build|import …");
+    break;
+  case "render": {
+    const target = rest.find((a) => !a.startsWith("-"));
+    if (!target && !rest.includes("--help") && !rest.includes("-h")) die("usage: explainer render <timeline.ts> [args]");
+    run(process.execPath, [join(KIT, "render", "vw.ts"), ...(rest.length ? ["render", ...rest] : ["--help"])]);
+    break;
+  }
+  case "theme": {
+    const [sub, name, dir] = rest;
+    if (sub === "init" && name && dir) themeInit(name, dir);
+    else die("usage: explainer theme init <name> <dir>");
+    break;
+  }
+  default:
+    die(`explainer: unknown command '${cmd}'\n\n${USAGE}`);
+}

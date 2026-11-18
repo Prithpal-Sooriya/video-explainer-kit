@@ -1,0 +1,34 @@
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.18.0"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Branding guard
+        run: |
+          if rg -i -l 'm[e]t[a]m[a]sk' --glob '!LICENSE' --glob '!NOTICE' --glob '!.github/workflows/*' .; then
+            echo "::error::repo must stay unbranded; found matches above"
+            exit 1
+          fi
+      - name: Python tests (no audio stack)
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Node render tests
+        run: node tests/test.ts
+      - name: Example dry-run
+        run: node bin/explainer render example/example.timeline.ts --dry-run
+      - name: Example layout check
+        run: node bin/explainer render example/example.timeline.ts --check
+      - name: Default theme drift check
+        run: node bin/explainer tokens build --theme motion-engineering --check

@@ -1,0 +1,40 @@
+{
+  "facts": [
+    {
+      "id": "F1",
+      "shown": "1920x1080",
+      "kind": "verbatim",
+      "source": "example/videowright.config.ts"
+    },
+    {
+      "id": "F2",
+      "shown": "30",
+      "kind": "verbatim",
+      "source": "example/videowright.config.ts"
+    },
+    {
+      "id": "F3",
+      "shown": "1",
+      "kind": "verbatim",
+      "source": "README.md"
+    },
+    {
+      "id": "F4",
+      "shown": "0",
+      "kind": "verbatim",
+      "source": "README.md"
+    }
+  ],
+  "allow": [
+    "24",
+    "400",
+    "0.2",
+    "0.8",
+    "01",
+    "02",
+    "03",
+    "04",
+    "4"
+  ],
+  "discrepancies": []
+}

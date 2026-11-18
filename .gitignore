@@ -1,0 +1,12 @@
+# rendered output and per-machine pipeline state
+example/out/
+example/cache/
+example/audio/tracks/v1/track.wav
+example/audio/tracks/v1/track.mp3
+example/durations.json
+example/captions.json
+check-frames/
+dist/
+__pycache__/
+*.pyc
+.DS_Store

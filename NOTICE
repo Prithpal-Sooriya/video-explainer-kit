@@ -1,0 +1,25 @@
+video-explainer-kit
+Copyright (c) 2025 The video-explainer-kit authors
+
+This project is licensed under the MIT License (see LICENSE).
+
+It builds on the following MIT-licensed works:
+
+- Videowright by Scott Cosman (https://github.com/scosman/videowright):
+  render/vw.ts is derived from videowright 0.1.1 (with the layout-check
+  additions described in its header), and the example project layout follows
+  its project conventions.
+- tiny-video-renderer by the same author: the CDP-screenshot-to-ffmpeg
+  pipeline that Videowright itself builds on.
+
+Command-line behaviour of some utilities (gap/padding/colour naming) follows
+Tailwind CSS's 4px scale conventions; no Tailwind code is included.
+
+The narration stack used at runtime (installed by setup.sh into a local venv,
+not distributed with this kit):
+- Kokoro-82M TTS and its misaki phonemizer
+- OpenAI Whisper (openai-whisper) for transcript verification
+
+The bundled themes/motion-engineering theme is the "Motion Engineering" style
+originally published as part of Videowright's example set, with its embedded
+Space Grotesk and JetBrains Mono webfonts.
