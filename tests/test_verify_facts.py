@@ -43,6 +43,18 @@ class VerifyFactsTest(unittest.TestCase):
         errors, _ = run(["Conversion is about 12% today."], {"facts": [fact()]})
         self.assertTrue(any("'12%'" in e for e in errors))
 
+    def test_substring_numbers_are_not_covered(self) -> None:
+        errors, _ = run(["Revenue was 41 dollars."], {"facts": [fact(shown="$41.25M")]})
+        self.assertTrue(any("'41'" in e for e in errors), errors)
+        errors, _ = run(["Resolution 1080 and rate 92."], {"facts": [fact(shown="1920x1080")]})
+        self.assertTrue(any("'92'" in e for e in errors), errors)
+
+    def test_compound_fact_covers_its_parts(self) -> None:
+        errors, _ = run(["Renders at 1920x1080 by default."], {"facts": [fact(shown="1920x1080")]})
+        self.assertEqual(errors, [], errors)
+        errors, _ = run(["The height is 1080 lines."], {"facts": [fact(shown="1920x1080")]})
+        self.assertTrue(any("'1080'" in e for e in errors), f"a fact must cover exactly the figures it shows: {errors}")
+
     def test_allow_list_covers_counts(self) -> None:
         errors, _ = run(["Three pillars and 3 phases."], {"facts": [], "allow": ["3"]})
         self.assertEqual(errors, [])

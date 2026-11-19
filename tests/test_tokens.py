@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import tarfile
 import tempfile
 import unittest
 from pathlib import Path
@@ -132,6 +133,47 @@ class ImportCss(unittest.TestCase):
             self.assertEqual(snap["type"]["display-md"]["font-size"], 112, "scale multiplies")
             self.assertEqual(snap["type"]["body-md"]["font-size"], 35)
             self.assertEqual(snap["type"]["display-md"]["font-weight"], 500)
+
+    def test_import_warns_when_a_type_role_is_unusable(self) -> None:
+        incomplete = self.CSS.replace("  --typography-display-md-letter-spacing: -0.01em;\n", "")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            css = root / "design-tokens.css"
+            css.write_text(incomplete)
+            r = subprocess.run(
+                [sys.executable, str(KIT / "tools" / "tokens.py"), "import", "--from", str(css), "--name", "acme", "--out", str(root / "tokens.json")],
+                capture_output=True, text=True,
+            )
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertIn("type role 'display-md' skipped (missing letter-spacing)", r.stderr)
+            snap = json.loads((root / "tokens.json").read_text())
+            self.assertNotIn("display-md", snap["type"])
+
+    def test_import_rejects_unsafe_snapshot_names(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            css = root / "design-tokens.css"
+            css.write_text(self.CSS)
+            r = subprocess.run(
+                [sys.executable, str(KIT / "tools" / "tokens.py"), "import", "--from", str(css), "--name", '../evil', "--out", str(root / "tokens.json")],
+                capture_output=True, text=True,
+            )
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn("invalid snapshot name", r.stderr)
+
+    def test_import_rejects_a_tgz_without_the_expected_layout(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "other.txt").write_text("not a package")
+            tgz = root / "pkg.tgz"
+            with tarfile.open(tgz, "w:gz") as tar:
+                tar.add(root / "other.txt", arcname="package/other.txt")
+            r = subprocess.run(
+                [sys.executable, str(KIT / "tools" / "tokens.py"), "import", "--from", str(tgz), "--out", str(root / "tokens.json")],
+                capture_output=True, text=True,
+            )
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn("no package/dist/styles.css", r.stderr)
 
     def test_imported_snapshot_builds_a_sheet(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

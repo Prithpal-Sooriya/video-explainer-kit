@@ -31,11 +31,11 @@ COMMON = {
 }
 
 OPS = {
-    "===": "equals equals equals",
-    "!==": "not equals equals",
+    "===": "triple equals",
+    "!==": "strictly not equals",
     "==": "equals equals",
     "!=": "not equals",
-    "<=": "less or equal",
+    "<=": "less than or equal to",
     ">=": "greater or equal",
     "=>": "arrow",
     "->": "arrow",

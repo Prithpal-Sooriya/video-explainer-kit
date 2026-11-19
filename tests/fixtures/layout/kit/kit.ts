@@ -4,6 +4,14 @@ export interface Cue {
 	text: string;
 }
 
+export function raw(html: string): string {
+	return html;
+}
+
+function esc(text: string): string {
+	return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
 export function stage(content: string, lockup = ""): string {
 	return `<div class="vw-stage">${lockup ? `<div class="vw-lockup">${lockup}</div>` : ""}<div class="vw-safe">${content}</div><div class="vw-captions" data-cap></div></div>`;
 }
@@ -22,19 +30,23 @@ export function grid(cols: number, ...items: string[]): string {
 
 export function card(title: string, body = "", opts: { attr?: string; focus?: boolean; level?: 1 | 2 } = {}): string {
 	const cls = ["vw-card", opts.level === 2 ? "vw-card-2" : "", opts.focus ? "vw-focus" : ""].filter(Boolean).join(" ");
-	return `<div class="${cls}" ${opts.attr ?? ""}><div class="vw-card-title">${title}</div>${body ? `<div class="vw-body">${body}</div>` : ""}</div>`;
+	return `<div class="${cls}" ${opts.attr ?? ""}><div class="vw-card-title">${esc(title)}</div>${body ? `<div class="vw-body">${esc(body)}</div>` : ""}</div>`;
 }
 
 export function pill(text: string, opts: { attr?: string; accent?: boolean } = {}): string {
-	return `<span class="vw-pill${opts.accent ? " vw-pill-accent" : ""}" ${opts.attr ?? ""}>${text}</span>`;
+	return `<span class="vw-pill${opts.accent ? " vw-pill-accent" : ""}" ${opts.attr ?? ""}>${esc(text)}</span>`;
 }
 
 export function code(file: string, html: string, attr = ""): string {
-	return `<div class="vw-code" ${attr}><div class="vw-code-head">${file}</div>${html}</div>`;
+	return `<div class="vw-code" ${attr}><div class="vw-code-head">${esc(file)}</div>${html}</div>`;
 }
 
 export function image(src: string, alt: string, attr = ""): string {
-	return `<div class="vw-frame vw-fill" ${attr}><img src="${src}" alt="${alt}"></div>`;
+	const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(src)?.[1]?.toLowerCase();
+	if (src.startsWith("//") || (scheme && scheme !== "data")) {
+		throw new Error(`image() src must be a relative or data: URL, got: ${src}`);
+	}
+	return `<div class="vw-frame vw-fill" ${attr}><img src="${esc(src)}" alt="${esc(alt)}"></div>`;
 }
 
 export function fitText(root: ParentNode, selector = "[data-fit]", minPx = 20): void {
@@ -57,7 +69,7 @@ export function scheduleCaptions(root: ParentNode, cues: Cue[]): number[] {
 				pill.textContent = cue.text;
 				pill.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, fill: "forwards" });
 			}, cue.start * 1000),
-			window.setTimeout(() => pill.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: "forwards" }), Math.max(0, cue.end * 1000 - 200)),
+			window.setTimeout(() => pill.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: "forwards" }), Math.max(cue.start * 1000 + 200, cue.end * 1000 - 200)),
 		);
 	}
 	return timers;

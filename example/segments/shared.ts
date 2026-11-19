@@ -1,1 +1,1 @@
-export type { Cue } from "../../../kit/kit";
+export type { Cue } from "../../kit/kit";

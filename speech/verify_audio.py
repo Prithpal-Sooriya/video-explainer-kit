@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 import wave
 from array import array
 from difflib import SequenceMatcher
@@ -267,9 +268,7 @@ def _group_words(words: list[dict]) -> list[list[dict]]:
 def _load_durations(scenes_path: Path, out_dir: Path) -> dict:
     path = out_dir / "durations.json"
     if not path.exists():
-        from synth import run
-
-        return run(scenes_path, out_dir)
+        raise SystemExit(f"{path} not found; run explainer synth first")
     return json.loads(path.read_text(encoding="utf-8"))
 
 
@@ -322,9 +321,12 @@ def _mostly_letters(phrase: str) -> bool:
 def _phonemes(phrase: str) -> str:
     try:
         from misaki.en import G2P, US_VOCAB
-
+    except ImportError:
+        return ""
+    try:
         phonemes, _tokens = G2P(trf=False, british=False)(phrase)
-    except Exception:
+    except Exception as exc:
+        print(f"phoneme lookup failed for {phrase!r}: {exc}", file=sys.stderr)
         return ""
     return "".join(char for char in phonemes if char in US_VOCAB or char.isspace()).strip()
 
@@ -356,48 +358,71 @@ def _repair_line(spoken: str, display: str, missed: list[str]) -> tuple[str, lis
     return updated, tried
 
 
-def _apply_repairs(scenes_path: Path, flags: list[dict], durations: dict) -> list[str]:
+def _apply_repairs(scenes_path: Path, flags: list[dict], durations: dict) -> tuple[dict[str, list[str]], list[str]]:
     scenes = load_scenes(scenes_path)
-    tried: list[str] = []
     lines_by_scene = {}
     for scene in scenes.get("scenes", []):
         lines_by_scene[str(scene.get("id"))] = scene.get("lines") or [scene]
     chunk_by_id = {chunk["id"]: chunk for chunk in durations["chunks"]}
+    tried_by_chunk: dict[str, list[str]] = {}
+    skipped: list[str] = []
     for flag in flags:
         chunk = chunk_by_id[flag["id"]]
         indexes = chunk.get("line_indexes") or [0]
         if len(indexes) != 1:
+            skipped.append(flag["id"])
             continue
         line = lines_by_scene[flag["scene_id"]][indexes[0]]
         updated, tokens = _repair_line(str(line.get("spoken", "")), str(line.get("display", "")), flag["mismatched"])
         if updated != line.get("spoken"):
             line["spoken"] = updated
-            tried.extend(tokens)
-    if tried:
+            tried_by_chunk.setdefault(flag["id"], []).extend(tokens)
+    if any(tried_by_chunk.values()):
         write_json(scenes_path, scenes)
-    return tried
+    return tried_by_chunk, skipped
+
+
+def _cleared_tokens(tried_by_chunk: dict[str, list[str]], still_flagged_chunks: set[str]) -> list[str]:
+    return [token for chunk_id, tokens in tried_by_chunk.items() for token in tokens if chunk_id not in still_flagged_chunks]
+
+
+def _merge_captions(path: Path, new: list[dict]) -> list[dict]:
+    by_id: dict[str, dict] = {}
+    if path.exists():
+        try:
+            by_id = {cue["id"]: cue for cue in json.loads(path.read_text(encoding="utf-8")).get("cues", [])}
+        except (ValueError, KeyError, TypeError):
+            by_id = {}
+    by_id.update({cue["id"]: cue for cue in new})
+    return list(by_id.values())
 
 
 def verify(scenes_path: Path, out_dir: Path, repair: bool = False, only: set[str] | None = None) -> list[dict]:
     durations = _load_durations(scenes_path, out_dir)
     flags, captions = _flagged(durations, out_dir, only)
+    captions_path = out_dir / "captions.json"
+    merged = _merge_captions(captions_path, captions)
     if repair and flags:
-        tried = _apply_repairs(scenes_path, flags, durations)
+        tried_by_chunk, skipped = _apply_repairs(scenes_path, flags, durations)
+        tried = [token for tokens in tried_by_chunk.values() for token in tokens]
         if tried:
             from synth import run
 
             durations = run(scenes_path, out_dir)
             flags, captions = _flagged(durations, out_dir, {flag["id"] for flag in flags})
-        cleared = [token for token in tried if token.lower() not in {m for flag in flags for m in flag["mismatched"]}]
+            merged = _merge_captions(captions_path, captions)
+        still_flagged_chunks = {flag["id"] for flag in flags}
+        cleared = _cleared_tokens(tried_by_chunk, still_flagged_chunks)
         write_json(
             out_dir / "repair.json",
             {
                 "tried": tried,
                 "cleared": cleared,
                 "still_flagged": sorted({m for flag in flags for m in flag["mismatched"]}),
+                "skipped": sorted(skipped),
             },
         )
-    write_json(out_dir / "captions.json", {"cues": captions})
+    write_json(captions_path, {"cues": merged})
     return flags
 
 

@@ -3,7 +3,7 @@
 
 Stdlib only. Reads scenes.json (`display` text), facts.json, and optionally extra
 files (segment sources) whose text is scanned the same way. Exit 1 on any error.
-See references/facts.md for the ledger format.
+The ledger format is documented in README.md.
 """
 
 from __future__ import annotations
@@ -110,15 +110,19 @@ def check(scenes: Path, facts_path: Path, also: list[Path]) -> tuple[list[str], 
         if not str(d.get("resolution", "")).strip():
             errors.append(f"discrepancy '{d.get('topic', '?')}': no resolution (ask the user)")
 
-    shown_norm = [norm(f["shown"]) for f in facts if f.get("shown")]
+    covered: set[str] = {norm(a) for a in allow}
+    for fact in facts:
+        if not fact.get("shown"):
+            continue
+        covered.add(norm(fact["shown"]))
+        covered.update(norm(token) for token in numbers_in(fact["shown"]))
     texts = [display_text(scenes)] + [strip_markup(p.read_text()) for p in also]
     haystack = "\n".join(texts)
     hay_norm = norm(haystack)
 
     uncovered: list[str] = []
     for token in numbers_in(haystack):
-        n = norm(token)
-        if n in allow or any(n in s for s in shown_norm):
+        if norm(token) in covered:
             continue
         if token not in uncovered:
             uncovered.append(token)

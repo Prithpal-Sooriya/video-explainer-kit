@@ -132,7 +132,12 @@ class LayoutCheck(unittest.TestCase):
 
     def test_clean_fixture_passes_motion_engineering(self) -> None:
         digest = subprocess.run(["shasum", "-a", "256", str(ME_CSS)], capture_output=True, text=True).stdout.split()[0]
-        self.assertEqual(digest, ME_SHA)
+        self.assertEqual(
+            digest,
+            ME_SHA,
+            "themes/motion-engineering/style.css changed. The digest pins the carried upstream stylesheet; "
+            "if the change is intentional, update ME_SHA in tests/test_layout_check.py.",
+        )
         r = check("me.timeline.ts")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("layout check: OK", r.stdout)

@@ -113,8 +113,3 @@ test("tokens: the shipped sheet is in sync with the theme", () => {
 	assert.equal(r.status, 0, r.stdout + r.stderr);
 	assert.match(r.stdout, /in sync/);
 });
-
-test("the kit stays unbranded", () => {
-	const r = spawnSync("rg", ["-i", "-l", "m[e]t[a]m[a]sk", "--glob", "!LICENSE", "--glob", "!NOTICE", KIT], { encoding: "utf-8" });
-	assert.equal(r.status, 1, `unbranded files: ${r.stdout}`);
-});

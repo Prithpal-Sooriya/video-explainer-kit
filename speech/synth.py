@@ -31,7 +31,7 @@ def _pipeline():
     if _PIPELINE is None:
         from kokoro import KPipeline
 
-        _PIPELINE = KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M")
+        _PIPELINE = KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M", revision="f3ff3571791e39611d31c381e3a41a3af07b4987")
     return _PIPELINE
 
 
@@ -189,7 +189,7 @@ def _to_mp3(wav: Path) -> Path | None:
     return mp3
 
 
-def _track_ts(audio_file: str, length_s: float, per_segment: dict[str, list[float]]) -> str:
+def _track_ts(audio_file: str, length_s: float, per_segment: dict[str, list[float]], voice: str, speed: float) -> str:
     timing = json.dumps({"perSegment": per_segment}, indent=2)
     created = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     return (
@@ -199,7 +199,7 @@ def _track_ts(audio_file: str, length_s: float, per_segment: dict[str, list[floa
         f"\tlength_s: {length_s},\n"
         f"\ttiming: {timing},\n"
         f'\tcreated_at: "{created}",\n'
-        '\tnotes: "Local Kokoro 82M, voice af_heart, 24 kHz. Generated from scenes.json.",\n'
+        f'\tnotes: "Local Kokoro 82M, voice {voice}, speed {speed}, 24 kHz. Generated from scenes.json.",\n'
         "};\n\nexport default track;\n"
     )
 
@@ -248,7 +248,7 @@ def run(scenes_path: Path, out_dir: Path, lexicon_path: Path | None = None, raw:
     length_s = round(sum(chunk["duration"] for chunk in chunks), 3)
     rel_audio = "./audio/tracks/v1/" + audio_path.name
     track_path = out_dir / "audio" / "tracks" / "v1" / "track.ts"
-    track_path.write_text(_track_ts(rel_audio, length_s, per_segment), encoding="utf-8")
+    track_path.write_text(_track_ts(rel_audio, length_s, per_segment, str(scenes.get("voice") or DEFAULT_VOICE), float(scenes.get("speed") or 1.0)), encoding="utf-8")
 
     durations = {
         "voice": scenes.get("voice") or DEFAULT_VOICE,

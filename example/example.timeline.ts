@@ -1,8 +1,8 @@
 import track from "./audio/tracks/v1/track";
-import "../../themes/motion-engineering/style.css";
-import "../../themes/motion-engineering/tokens.css";
-import "../../themes/motion-engineering/tailwind.css";
-import "../../kit/kit.css";
+import "../themes/motion-engineering/style.css";
+import "../themes/motion-engineering/tokens.css";
+import "../themes/motion-engineering/tailwind.css";
+import "../kit/kit.css";
 
 export default {
 	meta: { title: "video-explainer-kit", style: "motion-engineering" },

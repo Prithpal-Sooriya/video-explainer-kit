@@ -799,7 +799,7 @@ export async function startServer(projectRoot: string, timelinePath: string, fps
 			if (path === "/render.html") return send(200, "text/html; charset=utf-8", RENDER_HTML);
 			if (path === "/__vw/vw.ts") return send(200, JS, browserSource);
 			if (path === "/__vw/virtual.js") return send(200, JS, virtual);
-			const file = files.get(path) ?? (path.startsWith("/c/") ? undefined : kitFiles.get(path));
+			const file = files.get(path) ?? kitFiles.get(path);
 			if (!file) return send(404, "text/plain", `not found: ${path}`);
 			const ext = extname(file).toLowerCase();
 			const data = readFileSync(file);

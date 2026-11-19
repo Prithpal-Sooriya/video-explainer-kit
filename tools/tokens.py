@@ -6,11 +6,14 @@ Stdlib only. Two steps, each runnable alone:
   build    read a theme's tokens.json and write (or check) the tailwind.css utility sheet
            --theme NAME|DIR   a built-in theme name (default: motion-engineering) or a
                               theme directory containing tokens.json
-           --out FILE         where to write the sheet (default: ./tailwind.css)
+           --out FILE         where to write the sheet (default: the theme's tailwind.css)
            --check            exit 1 if the file differs from what the snapshot generates
 
-  import   read a design-tokens CSS file and write a tokens.json snapshot for build
-           --from PATH        a .css file, an unpacked npm package, a .tgz, or a repo clone
+  import   read a design-tokens CSS source and write a tokens.json snapshot for build
+           --from PATH        one of: a plain .css file; a design-tokens package directory
+                              (dist/styles.css, package/dist/styles.css, or
+                              src/css/{brand-colors,dark-theme-colors,typography}.css);
+                              or such a package as a .tgz
            --name NAME        the snapshot name (default: the source package name)
            --scale N          rem-to-px multiplier for the video canvas (default: 1.75)
 
@@ -90,7 +93,13 @@ def blocks(css: str) -> list[tuple[str, dict[str, str]]]:
 def read_source(path: Path) -> str:
     if path.is_file() and path.suffix == ".tgz":
         with tarfile.open(path) as tar:
-            return tar.extractfile("package/dist/styles.css").read().decode()
+            try:
+                member = tar.extractfile("package/dist/styles.css")
+            except KeyError:
+                member = None
+            if member is None:
+                raise SystemExit(f"{path} has no package/dist/styles.css; not a design-tokens package tarball")
+            return member.read().decode()
     if path.is_file():
         return path.read_text()
     for rel in ["dist/styles.css", "package/dist/styles.css"]:
@@ -100,7 +109,10 @@ def read_source(path: Path) -> str:
     names = ["brand-colors.css", "dark-theme-colors.css", "typography.css"]
     if all((src / n).exists() for n in names):
         return "\n".join((src / n).read_text() for n in names)
-    raise SystemExit(f"no design-tokens CSS under {path}")
+    raise SystemExit(
+        f"no design-tokens CSS under {path}: expected dist/styles.css, package/dist/styles.css, "
+        f"or src/css/{'+'.join(n.removesuffix('.css') for n in names)}.css"
+    )
 
 
 def resolve(value: str, scope: dict[str, str]) -> str:
@@ -131,7 +143,7 @@ def to_em(value: str) -> float:
     raise ValueError(f"not a letter spacing: {value}")
 
 
-def parse(css: str, name: str, version: str, scale: float) -> dict:
+def parse(css: str, name: str, version: str, scale: float) -> tuple[dict, dict[str, str]]:
     root: dict[str, str] = {}
     dark: dict[str, str] = {}
     for sel, decls in blocks(css):
@@ -148,9 +160,8 @@ def parse(css: str, name: str, version: str, scale: float) -> dict:
         if not k.startswith(("--color-", "--brand-colors-")) or SKIP.search(k):
             continue
         value = resolve(v, scope)
-        if re.fullmatch(r"#[0-9a-fA-F]{3,8}|rgba?\([^)]*\)", value):
+        if re.fullmatch(r"#[0-9a-fA-F]{3,8}|rgba?\(\s*[\d.%\s,/]+\)", value):
             colors[k.removeprefix("--color-").removeprefix("--brand-colors-")] = value.lower()
-    type_scale: dict[str, dict] = {}
     RANK = {"l": 2, "m": 1, "s": 0}
     best: dict[tuple[str, str], tuple[int, str]] = {}
     for k, v in scope.items():
@@ -166,6 +177,8 @@ def parse(css: str, name: str, version: str, scale: float) -> dict:
     per_role: dict[str, dict[str, str]] = {}
     for (role, prop), (_, v) in best.items():
         per_role.setdefault(role, {})[prop] = v
+    type_scale: dict[str, dict] = {}
+    skipped: dict[str, str] = {}
     for role, props in per_role.items():
         try:
             type_scale[role] = {
@@ -174,9 +187,12 @@ def parse(css: str, name: str, version: str, scale: float) -> dict:
                 "font-weight": int(resolve(props["font-weight"], scope)),
                 "letter-spacing": to_em(resolve(props["letter-spacing"], scope)),
             }
-        except (KeyError, ValueError):
-            continue
-    return {"name": name, "version": version, "scale": 1, "colors": dict(sorted(colors.items())), "type": type_scale}
+        except KeyError as exc:
+            skipped[role] = f"missing {exc.args[0]}"
+        except ValueError as exc:
+            skipped[role] = str(exc)
+    snap = {"name": name, "version": version, "scale": 1, "colors": dict(sorted(colors.items())), "type": type_scale}
+    return snap, skipped
 
 
 def package_field(source: Path, field: str) -> str | None:
@@ -195,9 +211,14 @@ def package_version(source: Path) -> str:
 
 def run_import(source: Path, name: str | None, version: str | None, scale: float, out: Path) -> int:
     css = read_source(source)
-    snap = parse(css, name or package_field(source, "name") or "imported", version or package_version(source), scale)
+    resolved_name = name or package_field(source, "name") or "imported"
+    if not re.fullmatch(r"[\w.@-]+", resolved_name):
+        raise SystemExit(f"invalid snapshot name {resolved_name!r}: letters, digits, dots, hyphens only")
+    snap, skipped = parse(css, resolved_name, version or package_version(source), scale)
     out.write_text(json.dumps(snap, indent=2) + "\n")
     print(f"wrote {out}: {len(snap['colors'])} colours, {len(snap['type'])} type roles (scale x{scale} baked in)")
+    for role, why in sorted(skipped.items()):
+        print(f"warning: type role '{role}' skipped ({why})", file=sys.stderr)
     return 0
 
 

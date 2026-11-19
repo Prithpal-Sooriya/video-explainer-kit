@@ -22,9 +22,9 @@ export VIRTUAL_ENV="$VENV"
 
 # kokoro pins an old transformers/tokenizers with no macOS arm64 wheels.
 # Install kokoro without deps, then a modern transformers instead.
-uv pip install --no-deps kokoro
-uv pip install loguru huggingface-hub numpy torch "misaki[en]" soundfile \
-  "transformers>=4.40,<4.50" openai-whisper
+uv pip install --no-deps kokoro==0.9.4
+uv pip install loguru==0.7.3 huggingface-hub==0.36.2 numpy==2.5.3 torch==2.14.1 \
+  "misaki[en]==0.9.4" soundfile==0.14.0 transformers==4.49.0 openai-whisper==20250625
 
 "$VENV/bin/python" - <<'EOF'
 from kokoro import KPipeline
@@ -36,4 +36,4 @@ EOF
 
 echo "Setup complete."
 echo "  venv:   $VENV"
-echo "  voice:  af_heart (override with KOKORO_VOICE)"
+echo "  voice:  af_heart default; set \"voice\" in scenes.json to change it"

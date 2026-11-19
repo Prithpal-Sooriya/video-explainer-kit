@@ -10,7 +10,7 @@ Built for engineers, PMs, EMs, designers, and leaders who need to explain work t
 - **Layout is checked** — overlapping titles, clipped cards, unreadable grey text and off-screen beats fail the build, not the review.
 - **Themes** — bring your design tokens, get Tailwind-shaped classes that the layout checker can lint. Ships with a dark, restrained "Motion Engineering" theme.
 
-The renderer is [Videowright](https://github.com/davebcn87/videowright) (MIT) — DOM + CSS, screenshotted by Chrome, stitched by ffmpeg — carried in this repo with attribution (see `NOTICE`).
+The renderer is [Videowright](https://github.com/scosman/videowright) (MIT) — DOM + CSS, screenshotted by Chrome, stitched by ffmpeg — carried in this repo with attribution (see `NOTICE`).
 
 ## What you get
 
@@ -49,6 +49,8 @@ tar -xzf video-explainer-kit-${VERSION}.tar.gz -C ~/.cache/video-explainer-kit
 export PATH="$HOME/.cache/video-explainer-kit/video-explainer-kit-${VERSION}/bin:$PATH"
 ```
 
+The `.sha256` sidecar guards against corrupted and stale downloads. It is served from the same release page as the tarball, so it is not tamper-proof on its own — compare it against the digest in the release notes if that matters to you.
+
 Or clone this repo and use `bin/explainer` in place. The CLI is a single Bash script; nothing is installed globally.
 
 ## Setup (once per machine)
@@ -62,6 +64,8 @@ The speech stack downloads Kokoro (voice) and Whisper (verification) models on f
 ## Make a video
 
 A *project* is a directory with `scenes.json` (what you say), `facts.json` (what you must be able to prove), segment components (what you show), and a timeline. See `example/` for a complete one.
+
+`scenes.json` speaks with Kokoro's `af_heart` voice by default; set `"voice": "af_sky"` (or any other Kokoro voice) and `"speed": 1.1` at the top level to change it for the whole project.
 
 ```bash
 cd my-project
@@ -126,7 +130,7 @@ A theme is a directory with:
 
 Use a built-in theme by name (`motion-engineering`) or any directory with `--theme <dir>`.
 
-Bring your own design system: export a design-tokens CSS file (`--color-*`, `--typography-*`), import it, and build the class sheet:
+Bring your own design system: export a design-tokens CSS file (`--color-*`, `--typography-*`), import it, and build the class sheet. `--from` takes a plain `.css` file, a design-tokens package directory (`dist/styles.css`, `package/dist/styles.css`, or `src/css/{brand-colors,dark-theme-colors,typography}.css`), or such a package as a `.tgz`:
 
 ```bash
 explainer tokens import --from design-tokens.css --name acme --version 2.0 --out themes/acme/tokens.json

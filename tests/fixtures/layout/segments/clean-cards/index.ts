@@ -1,5 +1,5 @@
 import { defineSegment } from "videowright";
-import { card, grid, pill, scheduleCaptions, clearTimers, stage } from "../../kit/kit";
+import { card, grid, pill, raw, scheduleCaptions, clearTimers, stage } from "../../kit/kit";
 import { lockup } from "../lockup";
 
 let host: HTMLElement | null = null;
@@ -15,7 +15,7 @@ export default defineSegment({
 			<div class="vw-title">Every card sits in the safe area</div>
 			${grid(3,
 				card("Before", "Text crowded the edge of the card.", { attr: "data-c1" }),
-				card("Change", `Padding and gaps come from the 4px scale.<span class="vw-pill vw-pill-accent" data-vw-allow-overlap style="position:absolute;right:-12px;top:-12px">NEW</span>`, { attr: 'data-c2 style="position:relative;overflow:visible"', focus: true }),
+				card("Change", raw(`Padding and gaps come from the 4px scale.<span class="vw-pill vw-pill-accent" data-vw-allow-overlap style="position:absolute;right:-12px;top:-12px">NEW</span>`), { attr: 'data-c2 style="position:relative;overflow:visible"', focus: true }),
 				card("After", "Everything fits the frame at 1920x1080.", { attr: "data-c3", level: 2 }),
 			)}
 			<div class="vw-subtitle">Kit · layout check · <span class="vw-accent">one file</span></div>`,
