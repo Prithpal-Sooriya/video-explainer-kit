@@ -23,16 +23,36 @@ CHUNK_GAP_S = 0.15
 MIN_TOKENS = 15
 MAX_WORDS = 150
 DEFAULT_VOICE = "af_heart"
+KOKORO_REPO = "hexgrad/Kokoro-82M"
+KOKORO_REVISION = "f3ff3571791e39611d31c381e3a41a3af07b4987"
 _PIPELINE = None
+
+
+def _hf_file(filename: str) -> str:
+    from huggingface_hub import hf_hub_download
+
+    return hf_hub_download(repo_id=KOKORO_REPO, filename=filename, revision=KOKORO_REVISION)
 
 
 def _pipeline():
     global _PIPELINE
     if _PIPELINE is None:
-        from kokoro import KPipeline
+        from kokoro import KModel, KPipeline
 
-        _PIPELINE = KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M", revision="f3ff3571791e39611d31c381e3a41a3af07b4987")
+        config = _hf_file("config.json")
+        weights = _hf_file(KModel.MODEL_NAMES[KOKORO_REPO])
+        model = KModel(repo_id=KOKORO_REPO, config=config, model=weights).eval()
+        _PIPELINE = KPipeline(lang_code="a", repo_id=KOKORO_REPO, model=model)
     return _PIPELINE
+
+
+def _voice(voice: str) -> str:
+    def resolve(part: str) -> str:
+        if part.endswith(".pt") or Path(part).exists():
+            return part
+        return _hf_file(f"voices/{part}.pt")
+
+    return ",".join(resolve(part) for part in voice.split(","))
 
 
 def synthesize_array(text: str, voice: str = DEFAULT_VOICE, speed: float = 1.0):
@@ -41,7 +61,7 @@ def synthesize_array(text: str, voice: str = DEFAULT_VOICE, speed: float = 1.0):
     parts: list = []
     gap = np.zeros(int(SAMPLE_RATE * CHUNK_GAP_S), dtype=np.float32)
     produced = False
-    for _graphemes, _phonemes, audio in _pipeline()(text, voice=voice, speed=speed):
+    for _graphemes, _phonemes, audio in _pipeline()(text, voice=_voice(voice), speed=speed):
         if audio is None:
             continue
         if produced:
