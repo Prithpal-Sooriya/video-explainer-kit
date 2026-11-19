@@ -1,0 +1,43 @@
+{
+  "scenes": [
+    {
+      "id": "why",
+      "lines": [
+        {
+          "display": "An explainer is a script, a voice, and a hundred small layout decisions: spacing, contrast, caption timing.",
+          "spoken": "An explainer is a script, a voice, and a hundred small layout decisions: spacing, contrast, caption timing."
+        },
+        {
+          "display": "The kit takes the decisions off your plate: one check reads every scene like a picky reviewer.",
+          "spoken": "The kit takes the decisions off your plate: one check reads every scene like a picky reviewer."
+        }
+      ]
+    },
+    {
+      "id": "how",
+      "lines": [
+        {
+          "display": "Write scenes.json, then run prep, synth, and verify-audio. The narration is timed to the words you actually show.",
+          "spoken": "Write scenes dot J S O N, then run prep, synth, and verify audio. The narration is timed to the words you actually show."
+        },
+        {
+          "display": "Then render with the check flag. Overlapping titles, clipped cards, and unreadable grey text all fail the build.",
+          "spoken": "Then render with the check flag. Overlapping titles, clipped cards, and unreadable grey text all fail the build."
+        }
+      ]
+    },
+    {
+      "id": "proof",
+      "lines": [
+        {
+          "display": "The check covers overlap, bounds, safe area, clipping, contrast, and unknown utility classes in about 1 second per scene.",
+          "spoken": "The check covers overlap, bounds, safe area, clipping, contrast, and unknown utility classes in about one second per scene."
+        },
+        {
+          "display": "A clean run renders the final MP4 at 1920x1080 and 30 fps, with captions that follow the voice.",
+          "spoken": "A clean run renders the final M P 4 at nineteen twenty by ten eighty and thirty F P S, with captions that follow the voice."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+/* fixture: a minimal unbranded theme for the layout-check tests (video-explainer-kit). */
+:root {
+	--color-bg: #101014;
+	--color-fg: #f2f2f5;
+	--color-muted: #b8b8c4;
+	--color-accent: #ff8800;
+	--color-border: #2a2a33;
+	--color-surface: #17171c;
+	--color-surface-2: #1f1f26;
+	--font-display: "Helvetica Neue", system-ui, sans-serif;
+	--font-body: "Helvetica Neue", system-ui, sans-serif;
+	--font-mono: ui-monospace, "SF Mono", monospace;
+	--lockup-top: 64px;
+	--gap: 32px;
+}
+
+body {
+	background-color: var(--color-bg);
+	color: var(--color-fg);
+	font-family: var(--font-body);
+	font-variant-numeric: tabular-nums;
+}
+
+.vw-stage::before {
+	content: "";
+	position: absolute;
+	inset: 40px;
+	z-index: -1;
+	pointer-events: none;
+	border: 1px solid var(--color-border);
+}
