@@ -25,6 +25,7 @@ MAX_WORDS = 150
 DEFAULT_VOICE = "af_heart"
 KOKORO_REPO = "hexgrad/Kokoro-82M"
 KOKORO_REVISION = "f3ff3571791e39611d31c381e3a41a3af07b4987"
+KOKORO_WEIGHTS = "kokoro-v1_0.pth"
 _PIPELINE = None
 
 
@@ -37,18 +38,20 @@ def _hf_file(filename: str) -> str:
 def _pipeline():
     global _PIPELINE
     if _PIPELINE is None:
+        import torch
         from kokoro import KModel, KPipeline
 
+        device = "cuda" if torch.cuda.is_available() else "cpu"
         config = _hf_file("config.json")
-        weights = _hf_file(KModel.MODEL_NAMES[KOKORO_REPO])
-        model = KModel(repo_id=KOKORO_REPO, config=config, model=weights).eval()
+        weights = _hf_file(KOKORO_WEIGHTS)
+        model = KModel(repo_id=KOKORO_REPO, config=config, model=weights).to(device).eval()
         _PIPELINE = KPipeline(lang_code="a", repo_id=KOKORO_REPO, model=model)
     return _PIPELINE
 
 
 def _voice(voice: str) -> str:
     def resolve(part: str) -> str:
-        if part.endswith(".pt") or Path(part).exists():
+        if part.endswith(".pt"):
             return part
         return _hf_file(f"voices/{part}.pt")
 
